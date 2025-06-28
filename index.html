@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bus Ticket QR Scanner</title>
+  <link rel="manifest" href="manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js');
+      });
+    }
+  </script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+    video {
+      width: 100%;
+      max-width: 480px;
+      border: 2px solid #1976d2;
+      border-radius: 8px;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 1.5em;
+    }
+  </style>
+</head>
+<body>
+  <h1>QR Scanner</h1>
+  <video id="preview"></video>
+  <div class="result" id="result">Scanning...</div>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script>
+    const resultElement = document.getElementById('result');
+
+    function beep(valid) {
+      const audio = new Audio(valid ? 'valid.mp3' : 'invalid.mp3');
+      audio.play();
+    }
+
+    function sendToServer(text) {
+      fetch("https://script.google.com/macros/s/AKfycbz8bG4OSh7mTRSgZf8HaG9lYxE1zSC9AHmaLEne1TF-KezxYpQ6-FD_bkkrI-ho-_bn/exec", {
+        method: "POST",
+        body: JSON.stringify({ scanned: text }),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => res.text())
+      .then(msg => {
+        resultElement.textContent = msg;
+        beep(msg.includes("Valid"));
+        setTimeout(() => {
+          resultElement.textContent = "Scanning...";
+        }, 2000);
+      });
+    }
+
+    const html5QrCode = new Html5Qrcode("preview");
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          text => {
+            html5QrCode.stop();
+            sendToServer(text);
+            setTimeout(() => html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, () => {}), 2000);
+          }
+        );
+      }
+    });
+  </script>
+</body>
+</html>
